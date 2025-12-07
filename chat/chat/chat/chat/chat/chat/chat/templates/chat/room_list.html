@@ -1,0 +1,11 @@
+{% extends "chat/base.html" %}
+{% block content %}
+<h3>Rooms</h3>
+<div class="list-group">
+  {% for r in rooms %}
+    <a class="list-group-item list-group-item-action" href="{% url 'room_detail' r.name %}">{{ r.name }}</a>
+  {% empty %}
+    <p>No rooms. Create one in the admin dashboard.</p>
+  {% endfor %}
+</div>
+{% endblock %}
