@@ -1,0 +1,71 @@
+{% extends "chat/base.html" %}
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Room: {{ room.name }}</h5>
+    <div id="messages" class="messages mb-3">
+      {% for m in messages %}
+        <div class="msg"><strong>{{ m.user.username }}:</strong> {{ m.content }} <small class="text-muted">{{ m.timestamp }}</small></div>
+      {% endfor %}
+    </div>
+
+    <div id="typing" class="small text-muted mb-2"></div>
+
+    <form id="chat-form" onsubmit="return false;">
+      <div class="input-group">
+        <input id="message-input" type="text" class="form-control" placeholder="Message..." autocomplete="off">
+        <button id="send" class="btn btn-success">Send</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  const roomName = "{{ room.name }}";
+  const user = "{{ request.user.username }}";
+  const ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
+  const chatSocket = new WebSocket(ws_scheme + "://" + window.location.host + "/ws/chat/" + roomName + "/");
+
+  const messagesEl = document.getElementById("messages");
+  const input = document.getElementById("message-input");
+  const typingEl = document.getElementById("typing");
+
+  chatSocket.onopen = function(){ console.log("ws open"); };
+  chatSocket.onmessage = function(e){
+    const data = JSON.parse(e.data);
+    if(data.type === "message"){
+      const d = document.createElement("div"); d.innerHTML = "<strong>" + data.username + ":</strong> " + data.message;
+      d.className = "msg";
+      messagesEl.appendChild(d);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    } else if(data.type === "system"){
+      const d = document.createElement("div"); d.className = "sys"; d.textContent = data.message;
+      messagesEl.appendChild(d);
+    } else if(data.type === "typing"){
+      if(data.typing && data.username !== user){
+        typingEl.textContent = data.username + " is typing...";
+      } else {
+        typingEl.textContent = "";
+      }
+    }
+  };
+
+  chatSocket.onclose = function(){ console.log("ws close"); };
+
+  document.getElementById("send").onclick = function(){
+    const msg = input.value.trim();
+    if(!msg) return;
+    chatSocket.send(JSON.stringify({ "message": msg }));
+    input.value = "";
+  };
+
+  let typingTimer;
+  input.addEventListener("input", function(){
+    chatSocket.send(JSON.stringify({ typing: true }));
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(function(){ chatSocket.send(JSON.stringify({ typing: false })); }, 1000);
+  });
+})();
+</script>
+{% endblock %}
